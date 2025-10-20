@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Product Filter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for better aesthetics */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* slate-300 */
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* slate-400 */
+        }
+        /* Ensure selects are not styled as disabled, as they are now always active */
+        select:disabled {
+            opacity: 1; 
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 md:p-8 font-sans">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-extrabold text-slate-800 mb-6 border-b pb-2">Product Filter (<span id="product-count">0</span> Items)</h1>
+        <p class="text-sm text-gray-500 mb-4">Filters are now dynamic: changing any selection updates the available options in all other dropdowns.</p>
+
+        <!-- Filter Controls Container -->
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            
+            <!-- Search Input Row -->
+            <div class="mb-6">
+                <label for="search-term" class="block text-sm font-medium text-gray-700 mb-1">Text Search (Product Name, Notes)</label>
+                <input type="text" id="search-term" placeholder="Enter keywords (e.g., TPO, Insulation, Fasteners)" 
+                       class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500"
+                       oninput="handleSearchChange()">
+            </div>
+            
+            <!-- Dropdown Filters Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 border-t pt-4">
+                
+                <!-- Manufacturer (Index 0) - Always Active -->
+                <div>
+                    <label for="filter-Manufacturer" class="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+                    <select id="filter-Manufacturer" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500" onchange="handleFilterChange('Manufacturer')">
+                        <option value="">All Manufacturers</option>
+                    </select>
+                </div>
+
+                <!-- Category (Index 1) - Always Active -->
+                <div>
+                    <label for="filter-Category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select id="filter-Category" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500" onchange="handleFilterChange('Category')">
+                        <option value="">All Categories</option>
+                    </select>
+                </div>
+
+                <!-- Type (Index 2) - Always Active -->
+                <div>
+                    <label for="filter-Type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select id="filter-Type" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500" onchange="handleFilterChange('Type')">
+                        <option value="">All Types</option>
+                    </select>
+                </div>
+
+                <!-- Thickness (Index 3) - Always Active -->
+                <div>
+                    <label for="filter-Thickness" class="block text-sm font-medium text-gray-700 mb-1">Thickness</label>
+                    <select id="filter-Thickness" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500" onchange="handleFilterChange('Thickness')">
+                        <option value="">All Thicknesses</option>
+                    </select>
+                </div>
+                
+                <!-- Width (Index 4) - Always Active -->
+                <div>
+                    <label for="filter-Width" class="block text-sm font-medium text-gray-700 mb-1">Width</label>
+                    <select id="filter-Width" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500" onchange="handleFilterChange('Width')">
+                        <option value="">All Widths</option>
+                    </select>
+                </div>
+
+                <!-- Attachment Methods (Index 5) - Always Active -->
+                <div>
+                    <label for="filter-Attachment_Methods" class="block text-sm font-medium text-gray-700 mb-1">Attachment Methods</label>
+                    <select id="filter-Attachment_Methods" class="w-full p-2 border border-gray-300 rounded-lg shadow-sm text-sm focus:ring-sky-500 focus:border-sky-500" onchange="handleFilterChange('Attachment Methods')">
+                        <option value="">All Methods</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Results Table -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="overflow-x-auto max-h-[70vh] custom-scrollbar">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0 shadow-sm z-10">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Manufacturer</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thickness</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Width</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Attachment Methods</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-results" class="bg-white divide-y divide-gray-100">
+                        <!-- Products will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="no-results" class="p-6 text-center text-gray-500 hidden">No products match the selected filters.</div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for data and state
+        let allProducts = [];
+        let filteredProducts = [];
+        
+        // This is now just a list of the filters to process, not a cascade order.
+        const filterOrder = ['Manufacturer', 'Category', 'Type', 'Thickness', 'Width', 'Attachment Methods'];
+
+        // Tracks the currently active selections (must match filterOrder keys)
+        let currentFilters = {
+            'Manufacturer': '',
+            'Category': '',
+            'Type': '',
+            'Thickness': '',
+            'Width': '',
+            'Attachment Methods': '' 
+        };
+        
+        // Mapping of column names to the Select element IDs
+        const filterIdMap = {
+            'Manufacturer': 'filter-Manufacturer',
+            'Category': 'filter-Category',
+            'Type': 'filter-Type',
+            'Thickness': 'filter-Thickness',
+            'Width': 'filter-Width',
+            'Attachment Methods': 'filter-Attachment_Methods' 
+        };
+        
+        /**
+         * Parses the raw CSV string into an array of product objects.
+         */
+        function parseCSV(csvContent) {
+            const lines = csvContent.trim().split('\n');
+            if (lines.length === 0) return [];
+
+            const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const products = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+                
+                if (values.length !== header.length) {
+                    const simpleValues = lines[i].split(',');
+                    if (simpleValues.length === header.length) {
+                        values.splice(0, values.length, ...simpleValues);
+                    } else {
+                        continue;
+                    }
+                }
+
+                const product = {};
+                header.forEach((key, index) => {
+                    let value = (values[index] || '').trim().replace(/^"|"$/g, '');
+                    product[key] = value;
+                });
+
+                products.push(product);
+            }
+            return products;
+        }
+
+        /**
+         * Gets unique values for a column based on a subset of products.
+         */
+        function getUniqueValues(data, column) {
+            const values = new Set();
+            data.forEach(product => {
+                const value = product[column];
+                if (value && value.trim()) {
+                    // Handle multi-value fields like 'Attachment Methods'
+                    if (column === 'Attachment Methods' && value.includes('|')) {
+                        value.split('|').map(v => v.trim()).filter(v => v).forEach(v => values.add(v));
+                    } else {
+                        values.add(value.trim());
+                    }
+                }
+            });
+            // Exclude common placeholder/variable values from unique options
+            return Array.from(values).filter(v => v !== 'Varies' && v !== '-' && v !== '').sort();
+        }
+
+        /**
+         * Updates the options in ALL filter dropdowns based on the collective state of ALL OTHER filters.
+         * The text search does NOT influence the dropdown options.
+         */
+        function updateAllFilters() {
+            for (const targetFilterName of filterOrder) {
+                const selectEl = document.getElementById(filterIdMap[targetFilterName]);
+                
+                // 1. Determine the source products: those that match ALL *OTHER* active dropdown filters.
+                let sourceProducts = allProducts.filter(product => {
+                    let match = true;
+                    for (const otherFilterName of filterOrder) {
+                        // Skip the filter we are currently trying to populate
+                        if (otherFilterName === targetFilterName) continue;
+
+                        const selectedValue = currentFilters[otherFilterName];
+                        
+                        // Apply the filter if a value is selected
+                        if (selectedValue) {
+                            const productValue = product[otherFilterName];
+                            
+                            if (!productValue) { match = false; break; }
+
+                            // Special handling for multi-value field
+                            if (otherFilterName === 'Attachment Methods' && productValue.includes('|')) {
+                                if (!productValue.split('|').map(v => v.trim()).includes(selectedValue)) {
+                                    match = false;
+                                    break;
+                                }
+                            } else if (productValue !== selectedValue) {
+                                // Ignore 'Varies' or '-' placeholders
+                                if (productValue !== 'Varies' && productValue !== '-') {
+                                    match = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    return match;
+                });
+
+                const uniqueValues = getUniqueValues(sourceProducts, targetFilterName);
+
+                // 2. Store the current selection before clearing
+                const currentSelection = selectEl.value;
+
+                // 3. Clear existing options
+                selectEl.innerHTML = '';
+                
+                // 4. Add the default 'All' option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = `All ${targetFilterName.replace('_', ' ')}`;
+                selectEl.appendChild(defaultOption);
+
+                // 5. Add unique values
+                uniqueValues.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    selectEl.appendChild(option);
+                });
+
+                // 6. Restore the current selection if it is still a valid option
+                if (currentSelection && uniqueValues.includes(currentSelection)) {
+                    selectEl.value = currentSelection;
+                } else {
+                    // If the old selection is no longer valid, reset the filter state.
+                    selectEl.value = '';
+                    currentFilters[targetFilterName] = '';
+                }
+            }
+        }
+
+
+        /**
+         * Main function to apply all current filters and update the product list.
+         */
+        function renderProducts() {
+            // Get the current search term (case-insensitive)
+            const searchInput = document.getElementById('search-term');
+            const searchTerm = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+            let intermediateProducts = allProducts;
+            
+            // --- 1. Apply Text Search Filter ---
+            if (searchTerm) {
+                intermediateProducts = intermediateProducts.filter(product => {
+                    // Search in 'Product Name' and 'Notes'
+                    const productName = (product['Product Name'] || '').toLowerCase();
+                    const notes = (product['Notes'] || '').toLowerCase();
+                    
+                    return productName.includes(searchTerm) || notes.includes(searchTerm);
+                });
+            }
+
+            // --- 2. Apply Dropdown Filters on the search results ---
+            filteredProducts = intermediateProducts.filter(product => {
+                let match = true;
+                for (const filterName of filterOrder) {
+                    const selectedValue = currentFilters[filterName];
+                    if (selectedValue) {
+                        const productValue = product[filterName];
+                        
+                        if (!productValue) {
+                             match = false;
+                             break;
+                        }
+
+                        // Special handling for multi-value field
+                        if (filterName === 'Attachment Methods' && productValue.includes('|')) {
+                            if (!productValue.split('|').map(v => v.trim()).includes(selectedValue)) {
+                                match = false;
+                                break;
+                            }
+                        } else if (productValue !== selectedValue) {
+                            // Check if the product value is a special value like 'Varies' which we exclude from filtering
+                            if (productValue === 'Varies' || productValue === '-') {
+                                // Do nothing, we only filter based on explicitly selected values
+                            } else {
+                                match = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                return match;
+            });
+
+            // --- 3. Render Results ---
+            const resultsBody = document.getElementById('product-results');
+            const productCount = document.getElementById('product-count');
+            const noResults = document.getElementById('no-results');
+            resultsBody.innerHTML = '';
+            
+            productCount.textContent = filteredProducts.length;
+
+            if (filteredProducts.length === 0) {
+                noResults.classList.remove('hidden');
+                return;
+            }
+            noResults.classList.add('hidden');
+
+            // Columns to display in the table
+            const dataFields = ['Manufacturer', 'Product Name', 'Category', 'Type', 'Thickness', 'Width', 'Attachment Methods'];
+
+            filteredProducts.slice(0, 100).forEach(product => {
+                const row = resultsBody.insertRow();
+                row.className = 'hover:bg-sky-50 transition duration-150 ease-in-out';
+                
+                dataFields.forEach((field, index) => {
+                    const cell = row.insertCell();
+                    cell.className = `px-6 py-4 whitespace-nowrap text-sm ${index === 1 ? 'font-medium text-gray-900' : 'text-gray-600'}`;
+                    // Display '-' if the value is missing or one of the excluded values
+                    const value = product[field] || '-';
+                    cell.textContent = (value === 'Varies' || value === '') ? '-' : value;
+                });
+            });
+            
+            if (filteredProducts.length > 100) {
+                const row = resultsBody.insertRow();
+                row.className = 'bg-gray-100 text-center';
+                const cell = row.insertCell();
+                cell.colSpan = dataFields.length;
+                cell.className = 'px-6 py-4 text-sm font-semibold text-gray-500';
+                cell.textContent = `Displaying 100 of ${filteredProducts.length} filtered results.`;
+            }
+        }
+
+        /**
+         * Handles a change event on a filter dropdown.
+         */
+        function handleFilterChange(changedFilterName) {
+            const selectEl = document.getElementById(filterIdMap[changedFilterName]);
+            const newSelection = selectEl.value;
+            
+            // 1. Update the state for the changed filter
+            currentFilters[changedFilterName] = newSelection;
+
+            // 2. Update options in ALL filters based on the new collective state (excluding search term)
+            updateAllFilters();
+            
+            // 3. Re-render the final product list
+            renderProducts();
+        }
+        
+        /**
+         * Handles a change event on the text search box.
+         */
+        function handleSearchChange() {
+            // Only need to re-render the final product list. 
+            // The dropdown filter options (updateAllFilters) are not affected by the text search.
+            renderProducts();
+        }
+
+        /**
+         * Initialization function. (MODIFIED FOR LOCAL EXECUTION)
+         */
+        async function initializeApp() {
+            try {
+                // *** Modification for Local Testing ***
+                // We attempt to load the CSV file from the same directory.
+                const response = await fetch('products1.csv');
+                if (!response.ok) {
+                    throw new Error(`Failed to load products1.csv: HTTP status ${response.status}`);
+                }
+                const csvData = await response.text();
+                // *** End Modification ***
+                
+                if (!csvData || csvData.length < 100) {
+                     // This simple fallback remains for extremely low-data scenarios
+                     console.warn("CSV data is empty or too short. Check products1.csv content.");
+                     throw new Error("CSV data is empty or too short. Please ensure products1.csv contains data.");
+                }
+
+                allProducts = parseCSV(csvData);
+
+                // Initialize all filters
+                updateAllFilters();
+                
+                // Initial render of all products
+                renderProducts();
+
+            } catch (error) {
+                console.error("Error initializing the application:", error);
+                // Update the UI to show the error
+                document.getElementById('product-results').innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-600 font-bold">Error loading data: ${error.message}. Make sure the file 'products1.csv' is in the same folder.</td></tr>`;
+                document.getElementById('product-count').textContent = 'Error';
+            }
+        }
+
+        // Initialize on window load
+        window.onload = initializeApp;
+
+    </script>
+</body>
+</html>
